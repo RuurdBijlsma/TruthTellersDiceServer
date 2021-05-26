@@ -1,7 +1,5 @@
-# mind-server
-Client source code: https://github.com/ruurdbijlsma/mind-client
-
-Client live app: https://ruurd.dev/mind
+# Truth Teller's Dice - Server
+Client source code: https://github.com/ruurdbijlsma/TruthTellersDiceClient
 
 ## Requirements
 * Python3
@@ -20,8 +18,3 @@ pip install -r requirements.txt
 cd src
 python main.py
 ```
-
-## Playing the game
-1. Run the server
-2. Go to https://ruurd.dev/mind
-3. Click "Play the game" to play the game!
