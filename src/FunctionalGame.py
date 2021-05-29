@@ -204,6 +204,9 @@ while not challenged:
             print(f"Player {turn} successfully challenged, player {(turn-1)%3} loses a die")
         else:
             print(f"Player {turn} unsuccessfully challenged, player {turn} loses a die")
-    logiclines.append(f"")
-    print(f"New quantities: {quantities}")
-    turn = (turn+1) % players
+    else:
+        logiclines.append(f"M{turn}({previousbid[0]}*{previousbid[1]})")
+        print(f"New quantities: {quantities}")
+        turn = (turn+1) % players
+        print(logiclines)
+print(logiclines)
