@@ -1,21 +1,29 @@
 import socketio
 from aiohttp import web
-from game import Game
+from FunctionalGame import FunctionalGame
 
 # create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins='*', logger=False)
+sio = socketio.AsyncServer(cors_allowed_origins='*', logger=True)
 app = web.Application()
 sio.attach(app)
 # app = socketio.WSGIApp(sio)
-game = Game(sio)
+
+games = {}
 
 
 # Events are sent from the web client to this server
 @sio.event
-async def do_stuff(sid, number):
-    result = game.do_stuff(number)
-    # This emits an event from the server to the client
-    await sio.emit('done_stuff', result)
+async def start_game(sid, players, dice, sides):
+    try:
+        games[sid] = FunctionalGame(players, dice, sides, sid)
+        # This emits an event from the server to the client
+        mat = games[sid].connection_mat
+        new_mat = games[sid].new_connection_mat
+        await sio.emit('worlds', games[sid].world_list)
+        await sio.emit('dice', games[sid].dice_combos)
+        await sio.emit('connection_matrices', [mat.tolist(), new_mat.tolist()])
+    except Exception as e:
+        print(e)
 
 
 @sio.event
@@ -25,6 +33,7 @@ def connect(sid, environ):
 
 @sio.event
 def disconnect(sid):
+    games.pop(sid)
     print('disconnect sid:', sid)
 
 

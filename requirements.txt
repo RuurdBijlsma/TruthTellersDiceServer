@@ -32,6 +32,8 @@ multidict==4.7.6
     # via
     #   aiohttp
     #   yarl
+numpy==1.20.3
+    # via -r requirements.in
 python-engineio==3.13.1
     # via python-socketio
 python-socketio==4.6.0
