@@ -1,6 +1,4 @@
-# TODO: if a player doesnt challenge a 3 bet, all players know what dice that player has. Relations can be updated!
 # TODO: if a player doesnt challenge a 3 bet, the next player should be challenged
-# TODO: if a player 3bets, every player knows what dice he has
 # TODO: append knowledge to list
 # TODO: make more rounds
 
