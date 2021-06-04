@@ -19,9 +19,10 @@ async def start_game(sid, players, dice, sides):
         # This emits an event from the server to the client
         mat = games[sid].connection_mat
         new_mat = games[sid].new_connection_mat
+        newest_mat = games[sid].newest_connection_mat
         await sio.emit('worlds', games[sid].world_list)
         await sio.emit('dice', games[sid].dice_combos)
-        await sio.emit('connection_matrices', [mat.tolist(), new_mat.tolist()])
+        await sio.emit('connection_matrices', [mat.tolist(), new_mat.tolist(), newest_mat.tolist()])
     except Exception as e:
         print(e)
 
