@@ -242,7 +242,6 @@ def updateconnectionmat(new_connection_mat, previous_bid, bidbefore, turn, dice,
                             new_connection_mat[i, j] = 0
         print("Connection matrix updated because player did not challenge max number of dice")
         print(new_connection_mat)
-        assert(0)
     return new_connection_mat
 
 
