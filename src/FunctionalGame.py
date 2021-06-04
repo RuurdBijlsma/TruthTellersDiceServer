@@ -185,7 +185,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides):
     # Has a different dice than the bid 50/75/100 %
     else:
         prob = random.randint(1, 100)
-        if prob <= 100 / (len(dice) + 1) * (previous_bid[0]):
+        if prob <= 100 / (len(dice)) * (previous_bid[0]):
             print("Holds different dice and challenges")
             for i, q in enumerate(quantities):
                 quantities[i] = -1
