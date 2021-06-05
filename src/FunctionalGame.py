@@ -21,6 +21,7 @@ class FunctionalGame:
 
         self.world_list = get_world_list(players, dice, sides)
         self.connection_mat = get_connection_mat(len(self.world_list), players)
+        self.allconnection_mat = np.array([copy.copy(self.connection_mat)])
 
         print("Initial world list")
         print(self.world_list)
@@ -78,6 +79,8 @@ class FunctionalGame:
             else:
                 newer_mat = update_connection_mat(self.new_connection_mat, previous_bid, bid_before,
                                                   turn, self.players, self.world_list)
+                self.allconnection_mat = np.concatenate((self.allconnection_mat, np.array([newer_mat])), axis=0)
+                print(self.allconnection_mat)
                 logic_lines.append(f"M{turn}({previous_bid[0]}*{previous_bid[1]})")
                 print(f"New quantities: {quantities}")
                 turn = (turn + 1) % players
