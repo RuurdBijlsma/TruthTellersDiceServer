@@ -37,54 +37,53 @@ class FunctionalGame:
         print("New connection matrix")
         print(self.new_connection_mat)
 
-        def first_round(dice_combos, players, sides):
-            print("First round")
-            challenged = 0
-            turn = 0
-            quantities = np.zeros(sides)
-            print(f"Initial quantities: {quantities}")
-            logic_lines = []
-
-            # [Number_of_dice, DiceNumber]
-            previous_bid = [0, 1]
-            while not challenged:
-
-                # Player who is in turn
-                print(f"Player {turn} in turn")
-                print(f"Previous bid is {previous_bid}")
-
-                # Action the player takes
-                bidbefore = copy.copy(previous_bid)
-                quantities, previous_bid = announce_or_challenge(quantities, previous_bid, dice_combos, turn, sides)
-
-                # Challenged
-                if sum(quantities) < 0:
-                    challenged = 1
-                    # See whether players loses dice or not
-                    total_dice = 0
-                    for d in dice_combos:
-                        if d == previous_bid[1]:
-                            total_dice += 1
-                    if previous_bid[0] > total_dice:
-                        print(f"Player {turn} successfully challenged, player {(turn - 1) % 3} loses a die")
-                    else:
-                        print(f"Player {turn} unsuccessfully challenged, player {turn} loses a die")
-                # Not challenged, we update connection matrix and logic lines
-                else:
-                    self.new_connection_mat = updateconnectionmat(self.new_connection_mat,
-                                                                  previous_bid,
-                                                                  bidbefore,
-                                                                  turn,
-                                                                  self.players,
-                                                                  self.world_list)
-                    logic_lines.append(f"M{turn}({previous_bid[0]}*{previous_bid[1]})")
-                    print(f"New quantities: {quantities}")
-                    turn = (turn + 1) % players
-                    print(logic_lines)
-            print(logic_lines)
-
         # Runs first round so without players losing a die
-        first_round(self.dice_combos, players, sides)
+        self.newest_connection_mat = self.first_round(self.dice_combos, players, sides)
+        print(self.newest_connection_mat)
+
+    def first_round(self, dice_combos, players, sides):
+        print("First round")
+        challenged = 0
+        turn = 0
+        quantities = np.zeros(sides)
+        print(f"Initial quantities: {quantities}")
+        logic_lines = []
+        newer_mat = None
+
+        # [Number_of_dice, DiceNumber]
+        previous_bid = [0, 1]
+        while not challenged:
+
+            # Player who is in turn
+            print(f"Player {turn} in turn")
+            print(f"Previous bid is {previous_bid}")
+
+            # Action the player takes
+            bid_before = copy.copy(previous_bid)
+            quantities, previous_bid = announce_or_challenge(quantities, previous_bid, dice_combos, turn, sides)
+
+            # Challenged
+            if sum(quantities) < 0:
+                challenged = 1
+                # See whether players loses dice or not
+                total_dice = 0
+                for d in dice_combos:
+                    if d == previous_bid[1]:
+                        total_dice += 1
+                if previous_bid[0] > total_dice:
+                    print(f"Player {turn} successfully challenged, player {(turn - 1) % 3} loses a die")
+                else:
+                    print(f"Player {turn} unsuccessfully challenged, player {turn} loses a die")
+            # Not challenged, we update connection matrix and logic lines
+            else:
+                newer_mat = update_connection_mat(self.new_connection_mat, previous_bid, bid_before,
+                                                  turn, self.players, self.world_list)
+                logic_lines.append(f"M{turn}({previous_bid[0]}*{previous_bid[1]})")
+                print(f"New quantities: {quantities}")
+                turn = (turn + 1) % players
+                print(logic_lines)
+        print(logic_lines)
+        return newer_mat
 
 
 def roll_dice(players, sides):
@@ -95,18 +94,19 @@ def roll_dice(players, sides):
 
 
 def look_at_dice(dice_combos, players, connection_mat, world_list):
-    for i, row in enumerate(connection_mat):
+    new_mat = connection_mat.copy()
+    for i, row in enumerate(new_mat):
         for j, value in enumerate(row):
-            commonworlds = np.array(world_list[i]) == np.array(world_list[j])
-            for k, boolean in enumerate(commonworlds):
+            common_worlds = np.array(world_list[i]) == np.array(world_list[j])
+            for k, boolean in enumerate(common_worlds):
                 # Dice are different
-                if (boolean == False) and \
-                    (dice_combos[k] == world_list[i][k] or dice_combos[k] == world_list[j][k]) and \
-                    f"{k+1}" in str(connection_mat[i, j]):
-                        connection_mat[i, j] -= (k+1)*10**(players-k-1)
-                if (boolean == True) and dice_combos[k] != world_list[i][k] and f"{k+1}" in str(connection_mat[i, j]):
-                    connection_mat[i, j] -= (k + 1) * 10 ** (players - k - 1)
-    return connection_mat
+                if (not boolean) and \
+                        (dice_combos[k] == world_list[i][k] or dice_combos[k] == world_list[j][k]) and \
+                        f"{k + 1}" in str(new_mat[i, j]):
+                    new_mat[i, j] -= (k + 1) * 10 ** (players - k - 1)
+                if boolean and dice_combos[k] != world_list[i][k] and f"{k + 1}" in str(new_mat[i, j]):
+                    new_mat[i, j] -= (k + 1) * 10 ** (players - k - 1)
+    return new_mat
 
 
 def get_world_list(players, dice, sides):
@@ -221,30 +221,30 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides):
     return quantities, [new_bid, new_dice]
 
 
-def updateconnectionmat(new_connection_mat, previous_bid, bidbefore, turn, dice, worldlist):
+def update_connection_mat(connection_mat, previous_bid, bid_before, turn, dice, world_list):
+    new_connection_mat = connection_mat.copy()
     # Player has this dice because he called the maximum number of dice
     if previous_bid[0] == dice:
-        dicenumber = previous_bid[1]
+        dice_number = previous_bid[1]
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
                 # Worlds at position of bidding player are different or his dice is not the same as on that position
-                if worldlist[i][turn] != dicenumber or worldlist[j][turn] != dicenumber:
-                            new_connection_mat[i, j] = 0
-        print("Connection matrix updated because player called max number of dice")
-        print(new_connection_mat)
+                if world_list[i][turn] != dice_number or world_list[j][turn] != dice_number:
+                    new_connection_mat[i, j] = 0
+        # print("Connection matrix updated because player called max number of dice")
+        # print(new_connection_mat)
     # Player has not challenged so this player also has the dice
-    if bidbefore[0] == dice:
-        dicenumber = bidbefore[1]
+    if bid_before[0] == dice:
+        dice_number = bid_before[1]
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
                 # Worlds at position of bidding player are different or his dice is not the same as on that position
-                if worldlist[i][turn] != dicenumber or worldlist[j][turn] != dicenumber:
-                            new_connection_mat[i, j] = 0
-        print("Connection matrix updated because player did not challenge max number of dice")
-        print(new_connection_mat)
+                if world_list[i][turn] != dice_number or world_list[j][turn] != dice_number:
+                    new_connection_mat[i, j] = 0
+        # print("Connection matrix updated because player did not challenge max number of dice")
+        # print(new_connection_mat)
     return new_connection_mat
 
 
 if __name__ == "__main__":
-    for j in range(10000):
-        i = FunctionalGame(3, 1, 2)
+    game_instance = FunctionalGame(3, 1, 2)
