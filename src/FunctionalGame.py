@@ -246,4 +246,5 @@ def updateconnectionmat(new_connection_mat, previous_bid, bidbefore, turn, dice,
 
 
 if __name__ == "__main__":
-    i = FunctionalGame(3, 1, 2)
+    for j in range(10000):
+        i = FunctionalGame(3, 1, 2)
