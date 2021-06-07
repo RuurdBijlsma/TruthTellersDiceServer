@@ -15,14 +15,12 @@ games = {}
 @sio.event
 async def start_game(sid, players, dice, sides):
     try:
-        games[sid] = FunctionalGame(players, dice, sides, sid)
-        # This emits an event from the server to the client
-        mat = games[sid].connection_mat
-        new_mat = games[sid].new_connection_mat
-        newest_mat = games[sid].newest_connection_mat
-        await sio.emit('worlds', games[sid].world_list)
-        await sio.emit('dice', games[sid].dice_combos)
-        await sio.emit('connection_matrices', [mat.tolist(), new_mat.tolist(), newest_mat.tolist()])
+        games[sid] = FunctionalGame(players, dice, sides)
+        await sio.emit('worlds', games[sid].world_list, sid)
+        await sio.emit('dice', games[sid].dice_combos, sid)
+        matrices_list = list(map(lambda x: x.tolist(), games[sid].all_matrices))
+        await sio.emit('connection_matrices', matrices_list, sid)
+        await sio.emit('logic_lines', games[sid].logic_lines, sid)
     except Exception as e:
         print(e)
 
