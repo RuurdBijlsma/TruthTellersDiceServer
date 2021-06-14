@@ -280,4 +280,5 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
 
 if __name__ == "__main__":
     #players dice sides
-    game_instance = FunctionalGame(3, 2, 2)
+    for i in range(10000):
+        game_instance = FunctionalGame(3, 2, 2)
