@@ -15,7 +15,7 @@ class FunctionalGame:
         self.players = players
         self.dice = dice
         self.sides = sides
-        self.personalbeliefs = personalbeliefs(players,dice)
+        self.personalbeliefs = personalbeliefs(players, dice)
 
         # Initialize worlds matrix
         self.world_list = get_world_list(players, dice, sides)
@@ -33,14 +33,19 @@ class FunctionalGame:
         print("Dice:")
         print(self.dice_combos)
         # Players look at their dice and initial worlds get removed
-        self.new_connection_mat, self.personalbeliefs = look_at_dice(self.dice_combos, players, self.connection_mat,
-                                                                   self.world_list,
-                                                                   self.sides,
-                                                                   self.personalbeliefs)
+        self.new_connection_mat, self.personalbeliefs = look_at_dice(self.dice_combos,
+                                                                     players,
+                                                                     self.connection_mat,
+                                                                     self.world_list,
+                                                                     self.sides,
+                                                                     self.personalbeliefs)
         print("New connection matrix")
         print(self.new_connection_mat)
         # Runs first round so without players losing a die
-        self.newest_connection_mat = self.first_round(self.dice_combos, self.players, self.sides, self.dice)
+        self.newest_connection_mat, self.logic_lines = self.first_round(self.dice_combos,
+                                                                        self.players,
+                                                                        self.sides,
+                                                                        self.dice)
         print(self.newest_connection_mat)
 
     def first_round(self, dice_combos, players, sides, dice):
@@ -77,26 +82,29 @@ class FunctionalGame:
                 if previous_bid[0] > total_dice:
                     print(f"Player {turn} successfully challenged, player {(turn - 1) % 3} loses a die")
                 else:
-                    print(f"Player {turn} unsuccessfully challenged, player {turn% 3 } loses a die")
+                    print(f"Player {turn} unsuccessfully challenged, player {turn % 3} loses a die")
             # Not challenged, we update connection matrix and logic lines
             else:
-                newer_mat, self.personalbeliefs = update_connection_mat(self.new_connection_mat, previous_bid, bid_before,
-                                                  turn, self.players, self.world_list, self.dice, self.dice_combos,
-                                                  self.personalbeliefs)
+                newer_mat, self.personalbeliefs = update_connection_mat(self.new_connection_mat, previous_bid,
+                                                                        bid_before,
+                                                                        turn, self.players, self.world_list, self.dice,
+                                                                        self.dice_combos,
+                                                                        self.personalbeliefs)
                 self.allconnection_mat = np.concatenate((self.allconnection_mat, np.array([newer_mat])), axis=0)
                 print(self.allconnection_mat)
-                logic_lines.append(f"M{turn}({previous_bid[0]}*{previous_bid[1]})")
+                logic_lines.append(f"M_{turn}({previous_bid[0]}*{previous_bid[1]})")
                 print(f"New quantities: {quantities}")
                 turn = (turn + 1) % players
         #         print(logic_lines)
         # print(logic_lines)
 
-        return newer_mat
+        return newer_mat, logic_lines
 
 
 # Initiates personal beliefs (how many dice there are at minimum)
-def personalbeliefs(players,dice):
+def personalbeliefs(players, dice):
     return np.zeros([players, dice])
+
 
 # Players roll their dice, list of lists containing dice per player is returned
 def roll_dice(players, sides, dice):
@@ -110,7 +118,7 @@ def roll_dice(players, sides, dice):
 def count(dicelist, sides):
     counts = np.zeros(sides)
     for dice in dicelist:
-        counts[dice-1] += 1
+        counts[dice - 1] += 1
 
     return counts
 
@@ -122,7 +130,7 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
     for player in range(players):
         pdice = dice_combos[player]
         for d in pdice:
-            personalbeliefs[player][d-1] += 1
+            personalbeliefs[player][d - 1] += 1
     # Iterate over every connection between worlds
     for i, row in enumerate(new_mat):
         for j, colval in enumerate(row):
@@ -132,10 +140,10 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
                 dicecounts = count(dice, sides)
                 horworldcounts = count(world_list[i], sides)
                 vertworldcounts = count(world_list[j], sides)
-                hordiff = horworldcounts-dicecounts
-                vertdiff = vertworldcounts-dicecounts
+                hordiff = horworldcounts - dicecounts
+                vertdiff = vertworldcounts - dicecounts
                 for k in range(len(dicecounts)):
-                    if (hordiff[k] < 0 or vertdiff[k] < 0) and f"{player+1}" in str(new_mat[i,j]):
+                    if (hordiff[k] < 0 or vertdiff[k] < 0) and f"{player + 1}" in str(new_mat[i, j]):
                         new_mat[i, j] -= (player + 1) * 10 ** (players - player - 1)
 
     return new_mat, personalbeliefs
@@ -143,8 +151,8 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
 
 def get_world_list(players, dice, sides):
     worlds = []
-    sidelist = [x+1 for x in range(sides)]
-    for val in itertools.product(*[sidelist]*(players*dice)):
+    sidelist = [x + 1 for x in range(sides)]
+    for val in itertools.product(*[sidelist] * (players * dice)):
         sorted = list(val)
         sorted.sort()
         worlds.append(sorted)
@@ -169,7 +177,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
     # Dice that the player in turn holds
     players_dice = np.array(dice[turn])
     # Bid is higher than the possible number according to the players dice
-    if previous_bid[0] > players*(dicenum-1) + sum(players_dice == np.array(previous_bid[1])):
+    if previous_bid[0] > players * (dicenum - 1) + sum(players_dice == np.array(previous_bid[1])):
         print("Challenges because of too high number of dice")
         for i, q in enumerate(quantities):
             quantities[i] = -1
@@ -183,18 +191,18 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
         new_bid = previous_bid[0]
 
     else:
-        prob = random.uniform(0,1)
+        prob = random.uniform(0, 1)
         # Challenge
         # probability (number of dice of prev bid - number of dice the player holds of that bid)/
         #               (total # of dice - dice the player holds)
-        topick = previous_bid[0]-sum(players_dice == previous_bid[1]) # k
-        diceleft = dicenum*(players-1) # x/n
+        topick = previous_bid[0] - sum(players_dice == previous_bid[1])  # k
+        diceleft = dicenum * (players - 1)  # x/n
         thesum = 0
         if previous_bid[0] != 0:
             # Probability of throwing at least x n's
             for x in range(topick, diceleft + 1):
-                thesum += math.factorial(diceleft)/(math.factorial(x)*math.factorial(diceleft-x))*\
-                    ((1/sides)**x)*((1-1/sides)**(diceleft-x))
+                thesum += math.factorial(diceleft) / (math.factorial(x) * math.factorial(diceleft - x)) * \
+                          ((1 / sides) ** x) * ((1 - 1 / sides) ** (diceleft - x))
         if prob <= thesum:
             print("Challenges because of belief its not true")
             for i, q in enumerate(quantities):
@@ -202,11 +210,11 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
             new_dice = previous_bid[1]
             new_bid = previous_bid[0]
         else:
-            prob = random.randint(1,100)
+            prob = random.randint(1, 100)
             # 50/50 of bidding higher or bidding next number
             # bid higher
             if prob < 50:
-                if previous_bid[0]+1 > dicenum*players-sum(players_dice == previous_bid[1]):
+                if previous_bid[0] + 1 > dicenum * players - sum(players_dice == previous_bid[1]):
                     print(f"Challenging because updating pips causes inconsistency")
                     for i, q in enumerate(quantities):
                         quantities[i] = -1
@@ -214,7 +222,8 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
                     new_bid = previous_bid[0]
                 else:
                     print(sum(players_dice == previous_bid[1]))
-                    new_bid = random.randint(previous_bid[0]+1, dicenum*players+sum(players_dice != previous_bid[1]))
+                    new_bid = random.randint(previous_bid[0] + 1,
+                                             dicenum * players + sum(players_dice != previous_bid[1]))
                     quantities[previous_bid[1] - 1] = new_bid
                     new_dice = previous_bid[1]
                     print(f"Updates current dice number to {new_bid}")
@@ -229,9 +238,9 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
                     new_bid = previous_bid[0]
                 else:
 
-                    new_dice = random.randint(previous_bid[1]+1, sides)
-                    new_bid = random.randint(1, players*dicenum - sum(players_dice != new_dice))
-                    quantities[new_dice-1] = new_bid
+                    new_dice = random.randint(previous_bid[1] + 1, sides)
+                    new_bid = random.randint(1, players * dicenum - sum(players_dice != new_dice))
+                    quantities[new_dice - 1] = new_bid
                     print(f"Updates dice number {previous_bid[1]} to {new_dice}")
                     print(f"Updates number of dice to {new_bid}")
 
@@ -244,40 +253,42 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
     # Player has this dice because he called more dice than possible for the rest
     # Everybody now knows that worlds with less dice than that are impossible
     # The next player has not challenged, meaning he also has those dice.
-    if previous_bid[0] > dice*(players-1):
-        excessivedice = previous_bid[0] - dice*(players-1)
+    if previous_bid[0] > dice * (players - 1):
+        excessivedice = previous_bid[0] - dice * (players - 1)
         dice_number = previous_bid[1]
 
         # Update personal belief matrix
         for player in range(players):
             if player != turn:
-                personalbeliefs[player][dice_number-1] += excessivedice
+                personalbeliefs[player][dice_number - 1] += excessivedice
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
                 # Remove connections where # of dice <= number of dice the other player has for sure
                 for player in range(players):
-                    if ((sum(np.array(world_list[i]) == previous_bid[1])) < personalbeliefs[player][dice_number-1] or
-                            (sum(np.array(world_list[j]) == previous_bid[1])) < personalbeliefs[player][dice_number-1]) and\
+                    if ((sum(np.array(world_list[i]) == previous_bid[1])) < personalbeliefs[player][dice_number - 1] or
+                        (sum(np.array(world_list[j]) == previous_bid[1])) < personalbeliefs[player][
+                            dice_number - 1]) and \
                             f"{player + 1}" in str(new_connection_mat[i, j]):
-                            new_connection_mat[i, j] -= (player + 1) * 10 ** (players - player - 1)
+                        new_connection_mat[i, j] -= (player + 1) * 10 ** (players - player - 1)
 
-    if bid_before[0] > dice*(players-1) and (previous_bid[1] != bid_before[1]):
-        excessivedice = bid_before[0] - dice*(players-1)
+    if bid_before[0] > dice * (players - 1) and (previous_bid[1] != bid_before[1]):
+        excessivedice = bid_before[0] - dice * (players - 1)
         dice_number = bid_before[1]
         for player in range(players):
             if player != turn:
-                personalbeliefs[player][dice_number-1] += excessivedice
+                personalbeliefs[player][dice_number - 1] += excessivedice
         # current player also has excessive dice
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
                 for player in range(players):
-                    if ((sum(np.array(world_list[i]) == bid_before[1])) < personalbeliefs[player][dice_number-1] or
-                            (sum(np.array(world_list[j]) == bid_before[1])) < personalbeliefs[player][dice_number-1]) and\
+                    if ((sum(np.array(world_list[i]) == bid_before[1])) < personalbeliefs[player][dice_number - 1] or
+                        (sum(np.array(world_list[j]) == bid_before[1])) < personalbeliefs[player][dice_number - 1]) and \
                             f"{player + 1}" in str(new_connection_mat[i, j]):
-                            new_connection_mat[i, j] -= (player + 1) * 10 ** (players - player - 1)
+                        new_connection_mat[i, j] -= (player + 1) * 10 ** (players - player - 1)
     return new_connection_mat, personalbeliefs
 
 
 if __name__ == "__main__":
-    #players dice sides
-    game_instance = FunctionalGame(3, 2, 2)
+    # players dice sides
+    game_instance = FunctionalGame(3, 1, 2)
+    # game_instance = FunctionalGame(3, 2, 2)

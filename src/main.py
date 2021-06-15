@@ -18,8 +18,8 @@ async def start_game(sid, players, dice, sides):
         games[sid] = FunctionalGame(players, dice, sides)
         await sio.emit('worlds', games[sid].world_list, sid)
         await sio.emit('dice', games[sid].dice_combos, sid)
-        matrices_list = list(map(lambda x: x.tolist(), games[sid].all_matrices))
-        await sio.emit('connection_matrices', matrices_list, sid)
+        connections_matrices = games[sid].allconnection_mat.tolist()
+        await sio.emit('connection_matrices', connections_matrices, sid)
         await sio.emit('logic_lines', games[sid].logic_lines, sid)
     except Exception as e:
         print(e)
