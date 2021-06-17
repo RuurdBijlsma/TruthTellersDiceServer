@@ -15,8 +15,7 @@ class FunctionalGame:
         self.players = players
         self.dice = dice
         self.sides = sides
-        self.personalbeliefs = personalbeliefs(players, dice)
-
+        self.personalbeliefs = personalbeliefs(players, sides)
         # Initialize worlds matrix
         self.world_list = get_world_list(players, dice, sides)
         self.connection_mat = get_connection_mat(len(self.world_list), players)
@@ -102,8 +101,8 @@ class FunctionalGame:
 
 
 # Initiates personal beliefs (how many dice there are at minimum)
-def personalbeliefs(players, dice):
-    return np.zeros([players, dice])
+def personalbeliefs(players, sides):
+    return np.zeros([players, sides])
 
 
 # Players roll their dice, list of lists containing dice per player is returned
@@ -129,7 +128,11 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
     # Update personal beliefs
     for player in range(players):
         pdice = dice_combos[player]
+        print("PDICE:")
+        print(pdice)
+        print("Pbelifs")
         for d in pdice:
+            print(personalbeliefs)
             personalbeliefs[player][d - 1] += 1
     # Iterate over every connection between worlds
     for i, row in enumerate(new_mat):
