@@ -1,4 +1,3 @@
-# TODO: copy complex datastructures st they dont get erased in history lists
 import itertools
 import math
 import numpy as np
@@ -10,6 +9,7 @@ import copy
 class FunctionalGame:
     def __init__(self, players, dice, sides, sid=None):
         self.sid = sid
+        self.sides = sides
         self.players = generateplayerslist(players)
         self.losingplayers = []
         self.playershistory = []
@@ -17,30 +17,49 @@ class FunctionalGame:
         self.playershistory.append(newplist)
         self.dice = dice
         self.dicehistory = []
-        self.logic_lines = None
-        self.logichistory = []
-        self.sides = sides
-        self.personalbeliefs = personalbeliefs(self.players, sides)
-        self.beliefshistory = []
+
+        self.logic_beliefs = None
+        self.logic_beliefsround = None
+        self.logic_beliefshistory = []
+        self.logic_commonknowledge = None
+        self.logic_commonknowledgeround = None
+        self.logic_commonknowledgehistory = []
+
+        self.personalbeliefs = None
         self.world_list = None
         self.connection_mat = None
 
         # Contains all connections in 1 round
         self.allconnection_mat = None
+        self.connection_matround = None
         self.connection_mathistory = []
 
         self.dice_combos = None
 
     def playround(self):
-        self.beliefshistory.append(self.personalbeliefs)
-        # Make initial world list for round
-        self.world_list = get_world_list(self.players, self.dice, self.sides)
+        self.connection_matround = []
 
-        # Make initial connection matrix for round
+        # Initialize structures that keep track of knowledge
+        self.logic_beliefs = []
+        self.logic_beliefsround = []
+
+        self.logic_commonknowledge = commonknowledge(self.sides)
+        self.logic_commonknowledgeround = []
+
+        self.personalbeliefs = personalbeliefs(self.players, self.sides)
+
+        # Make initial world list and connection matrix for round
+        self.world_list = get_world_list(self.players, self.dice, self.sides)
         self.connection_mat = get_connection_mat(len(self.world_list), len(self.players))
 
-        # make initial connection matrix for round
-        self.allconnection_mat = np.array([copy.copy(self.connection_mat)])
+        # Append initial states to lists that keep track of round states
+        self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+        tempbeliefs = copy.copy(self.logic_beliefs)
+        tempcommonknowledge = copy.copy(self.logic_commonknowledge)
+        tempconmat = copy.copy(self.connection_mat)
+        self.logic_beliefsround.append(tempbeliefs)
+        self.logic_commonknowledgeround.append(tempcommonknowledge)
+        self.connection_matround.append(tempconmat)
 
         print("Initial world list")
         print(self.world_list)
@@ -50,31 +69,48 @@ class FunctionalGame:
         # Let's play the game
         # Roll the dice and append to history
         self.dice_combos = roll_dice(self.players, self.sides, self.dice)
-        self.dicehistory.append(self.dice_combos)
+        tempdicecombos = copy.copy(self.dice_combos)
+        self.dicehistory.append(tempdicecombos)
         print("Dice:")
         print(self.dice_combos)
+
         # Players look at their dice and initial worlds get removed
-        new_connection_mat, self.personalbeliefs = look_at_dice(self.dice_combos,
+        self.connection_mat, self.personalbeliefs = look_at_dice(self.dice_combos,
                                                                      self.players,
                                                                      self.connection_mat,
                                                                      self.world_list,
                                                                      self.sides,
                                                                      self.personalbeliefs)
+
+        # Append states after looking at dice to lists that keep track of round states
+        self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+        tempbeliefs = copy.copy(self.logic_beliefs)
+        tempcommonknowledge = copy.copy(self.logic_commonknowledge)
+        tempconmat = copy.copy(self.connection_mat)
+        self.logic_beliefsround.append(tempbeliefs)
+        self.logic_commonknowledgeround.append(tempcommonknowledge)
+        self.connection_matround.append(tempconmat)
+
         print("New connection matrix")
-        print(new_connection_mat)
+        print(self.connection_mat)
         # Runs first round so without players losing a die
         self.bidding()
-        self.logichistory.append(self.logic_lines)
         print(self.connection_mat)
-        self.connection_mathistory.append(self.allconnection_mat)
+
+        # Append all round history to global history
+        temproundcknowledge = copy.copy(self.logic_commonknowledgeround)
+        temproundbelief = copy.copy(self.logic_beliefsround)
+        temproundconmat = copy.copy(self.connection_matround)
+        self.logic_commonknowledgehistory.append(temproundcknowledge)
+        self.logic_beliefshistory.append(temproundbelief)
+        self.connection_mathistory.append(temproundconmat)
 
     def bidding(self):
-        print("First round")
         challenged = 0
         turn = 0
         quantities = np.zeros(self.sides)
         print(f"Initial quantities: {quantities}")
-        self.logic_lines = []
+        self.logic_beliefs = []
 
         # [Number_of_dice, DiceNumber]
         previous_bid = [0, 1]
@@ -86,8 +122,10 @@ class FunctionalGame:
 
             # Action the player takes
             bid_before = copy.copy(previous_bid)
-            quantities, previous_bid = announce_or_challenge(quantities, previous_bid, self.dice_combos, turn, self.sides,
-                                                             self.players, self.dice)
+            quantities, previous_bid, self.personalbeliefs= announce_or_challenge(quantities, previous_bid,
+                                                                             self.dice_combos, turn, self.sides,
+                                                                             self.players, self.dice,
+                                                                             self.personalbeliefs)
 
             # Challenged
             if sum(quantities) < 0:
@@ -112,37 +150,54 @@ class FunctionalGame:
                     print(f"Player {self.players[turn]} unsuccessfully challenged, player "
                           f"{self.players[turn - 1 % len(self.players)] } loses a die")
                     del self.players[turn]
-                print("appending")
-                print(self.playershistory)
-                print(self.players)
                 newplist = copy.copy(self.players)
                 self.playershistory.append(newplist)
-                print(self.playershistory)
             # Not challenged, we update connection matrix and logic lines
             else:
-                self.connection_mat, self.personalbeliefs = update_connection_mat(self.connection_mat, previous_bid,
-                                                                        bid_before,
-                                                                        turn, self.players, self.world_list, self.dice,
-                                                                        self.dice_combos,
-                                                                        self.personalbeliefs)
-                self.allconnection_mat = np.concatenate((self.allconnection_mat, np.array([self.connection_mat
-                                                                                           ])), axis=0)
-                print(self.allconnection_mat)
-                self.logic_lines.append(f"M_{self.players[turn]}({previous_bid[0]}*{previous_bid[1]})")
+                self.connection_mat, self.personalbeliefs,self.logic_commonknowledge = update_connection_mat(
+                                                                                    self.connection_mat,
+                                                                                    previous_bid,
+                                                                                    bid_before,
+                                                                                    turn,
+                                                                                    self.players,
+                                                                                    self.world_list, self.dice,
+                                                                                    self.logic_commonknowledge,
+                                                                                    self.personalbeliefs,
+                                                                                    self.dice_combos)
+
+                # Append logic and connection matrices after every bidding round
+                self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+                tempbeliefs = copy.copy(self.logic_beliefs)
+                tempcommonknowledge = copy.copy(self.logic_commonknowledge)
+                tempconmat = copy.copy(self.connection_mat)
+                self.logic_beliefsround.append(tempbeliefs)
+                self.logic_commonknowledgeround.append(tempcommonknowledge)
+                self.connection_matround.append(tempconmat)
+
                 print(f"New quantities: {quantities}")
                 turn = (turn + 1) % len(self.players)
-                print(self.logic_lines)
-
-            self.beliefshistory.append(self.personalbeliefs)
 
 
 def generateplayerslist(players):
     return [x for x in range(players)]
 
 
+def generatebelieflines(beliefs):
+    lines = []
+    for i, row in enumerate(beliefs):
+        for j, col in enumerate(row):
+            lines.append(f"M_{i} >= {int(col)}*{j+1}")
+
+    return lines
+
+
 # Initiates personal beliefs (how many dice there are at minimum)
 def personalbeliefs(players, sides):
     return np.zeros([len(players), sides])
+
+
+def commonknowledge(sides):
+    return np.zeros(sides)
 
 
 # Players roll their dice, list of lists containing dice per player is returned
@@ -169,7 +224,7 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
     for k, player in enumerate(players):
         pdice = dice_combos[k]
         for d in pdice:
-            personalbeliefs[player][d - 1] += 1
+            personalbeliefs[k][d - 1] += 1
     # Iterate over every connection between worlds
     for i, row in enumerate(new_mat):
         for j, colval in enumerate(row):
@@ -210,7 +265,7 @@ def get_connection_mat(n_worlds, players):
 
 
 # If all quantities are -1, we challenge
-def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum):
+def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum, personalbeliefs):
     new_dice = 0
     new_bid = 0
     # Dice that the player in turn holds
@@ -222,7 +277,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
             quantities[i] = -1
         new_dice = previous_bid[1]
         new_bid = previous_bid[0]
-    elif previous_bid[0] < sum(players_dice == np.array(previous_bid[1])) and previous_bid[0] != 0:
+    elif previous_bid[0] < personalbeliefs[turn][previous_bid[1]-1] and previous_bid[0] != 0:
         print("Challenges because of too low number of dice")
         for i, q in enumerate(quantities):
             quantities[i] = -1
@@ -256,7 +311,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
             # bid higher
             if prob < 50:
                 # Bid would be too high for current number of dice in game
-                if previous_bid[0] + 1 > dicenum * len(players) - sum(players_dice == previous_bid[1]):
+                if previous_bid[0] + 1 > dicenum * len(players) - personalbeliefs[turn][previous_bid[1]-1]:
                     print(f"Challenging because updating pips causes inconsistency")
                     for i, q in enumerate(quantities):
                         quantities[i] = -1
@@ -268,6 +323,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
                                              dicenum * len(players) - sum(players_dice == previous_bid[1]))
                     quantities[previous_bid[1] - 1] = new_bid
                     new_dice = previous_bid[1]
+                    personalbeliefs[turn][previous_bid[1]-1] = new_bid
                     print(f"Updates current dice number to {new_bid}")
             # update number
             else:
@@ -283,26 +339,29 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
                     new_dice = random.randint(previous_bid[1] + 1, sides)
                     new_bid = random.randint(1, len(players) * dicenum - sum(players_dice != new_dice))
                     quantities[new_dice - 1] = new_bid
+                    personalbeliefs[turn][previous_bid[1]-1] = new_bid
                     print(f"Updates dice number {previous_bid[1]} to {new_dice}")
                     print(f"Updates number of dice to {new_bid}")
 
-    return quantities, [new_bid, new_dice]
+    return quantities, [new_bid, new_dice], personalbeliefs
 
 
-def update_connection_mat(connection_mat, previous_bid, bid_before, turn, players, world_list, dice, playersdice,
-                          personalbeliefs):
+def update_connection_mat(connection_mat, previous_bid, bid_before, turn, players, world_list, dice, cknowledge,
+                          personalbeliefs, dicecombos):
     new_connection_mat = connection_mat.copy()
     # Player has this dice because he called more dice than possible for the rest
     # Everybody now knows that worlds with less dice than that are impossible
     # The next player has not challenged, meaning he also has those dice.
     if previous_bid[0] > dice * (len(players) - 1):
         excessivedice = previous_bid[0] - dice * (len(players) - 1)
+        cknowledge[previous_bid[1]-1] = excessivedice
         dice_number = previous_bid[1]
 
         # Update personal belief matrix
         for k, player in enumerate(players):
-            if k != turn:
-                personalbeliefs[k][dice_number - 1] += excessivedice
+            if k != turn and personalbeliefs[k][dice_number - 1] <\
+                    excessivedice + sum(np.array(dicecombos[k]) == previous_bid[1]):
+                personalbeliefs[k][dice_number - 1] = excessivedice + sum(np.array(dicecombos[k]) == previous_bid[1])
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
                 # Remove connections where # of dice <= number of dice the other player has for sure
@@ -313,12 +372,15 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
                             f"{l + 1}" in str(new_connection_mat[i, j]):
                         new_connection_mat[i, j] -= (l + 1) * 10 ** (len(players) - l - 1)
 
+    # Player didnt challenge, so this player also has excessive dice
     if bid_before[0] > dice * (len(players) - 1) and (previous_bid[1] != bid_before[1]):
         excessivedice = bid_before[0] - dice * (len(players) - 1)
+        cknowledge[previous_bid[1]-1] = excessivedice*2
         dice_number = bid_before[1]
         for m, player in enumerate(players):
-            if m != turn:
-                personalbeliefs[m][dice_number - 1] += excessivedice
+            if m != turn and personalbeliefs[m][dice_number - 1] <\
+                    excessivedice + sum(np.array(dicecombos[m]) == bid_before[1]):
+                personalbeliefs[m][dice_number - 1] = excessivedice + sum(np.array(dicecombos[m]) == bid_before[1])
         # current player also has excessive dice
         for i, row in enumerate(new_connection_mat):
             for j, value in enumerate(row):
@@ -327,20 +389,31 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
                         (sum(np.array(world_list[j]) == bid_before[1])) < personalbeliefs[n][dice_number - 1]) and \
                             f"{n + 1}" in str(new_connection_mat[i, j]):
                         new_connection_mat[i, j] -= (n + 1) * 10 ** (len(players) - n - 1)
-    return new_connection_mat, personalbeliefs
+    return new_connection_mat, personalbeliefs, cknowledge
 
 
 if __name__ == "__main__":
-    # players dice sides
-    # game_instance = FunctionalGame(3, 1, 2)
+    # players dice sides\
     game_instance = FunctionalGame(3, 2, 2)
     while len(game_instance.players) > 1:
         game_instance.playround()
 
-    print("\nHistory of the game:\n")
+    print("\nHistory of the game:")
     print(game_instance.connection_mathistory)
+
+    print("\nDice history:")
     print(game_instance.dicehistory)
-    print(game_instance.logichistory)
-    print("Playerhistory:")
+    print("\nCommon knowledge history:")
+    print(game_instance.logic_commonknowledgehistory)
+    print("\nPlayer history:")
     print(game_instance.playershistory)
-    print(game_instance.beliefshistory)
+    print("\nLosing player history:")
+    print(game_instance.losingplayers)
+    print("\nBelief history:")
+    print(game_instance.logic_beliefshistory)
+    with open("run.txt", 'w') as runfile:
+        runfile.write(str(game_instance.dicehistory) + "\n" +
+                      str(game_instance.logic_commonknowledgehistory) + "\n" +
+                      str(game_instance.playershistory) + "\n" +
+                      str(game_instance.losingplayers) + "\n" +
+                      str(game_instance.logic_beliefshistory))
