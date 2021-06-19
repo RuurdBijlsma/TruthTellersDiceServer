@@ -95,7 +95,6 @@ class FunctionalGame:
         print(self.connection_mat)
         # Runs first round so without players losing a die
         self.bidding()
-        print(self.connection_mat)
 
         # Append all round history to global history
         temproundcknowledge = copy.copy(self.logic_commonknowledgeround)
@@ -270,15 +269,9 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
     new_bid = 0
     # Dice that the player in turn holds
     players_dice = np.array(dice[turn])
-    # Bid is higher than the possible number according to the players dice
-    if previous_bid[0] > len(players) * dicenum - sum(players_dice != np.array(previous_bid[1])):
-        print("Challenges because of too high number of dice")
-        for i, q in enumerate(quantities):
-            quantities[i] = -1
-        new_dice = previous_bid[1]
-        new_bid = previous_bid[0]
-    elif previous_bid[0] < personalbeliefs[turn][previous_bid[1]-1] and previous_bid[0] != 0:
-        print("Challenges because of too low number of dice")
+    # Bid is higher than the belief allow
+    if 0 > len(players) * dicenum - sum(personalbeliefs[turn]) + personalbeliefs[turn][previous_bid[1]-1]- previous_bid[0]:
+        print("Challenges because of too high number of dice according to players belief")
         for i, q in enumerate(quantities):
             quantities[i] = -1
         new_dice = previous_bid[1]
@@ -289,14 +282,18 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
         # Challenge
         # probability (number of dice of prev bid - number of dice the player holds of that bid)/
         #               (total # of dice - dice the player holds)
-        topick = previous_bid[0] - sum(players_dice == previous_bid[1])  # k
+        # To pick indicates how many dice need to be the same number as the bid in order to satisfy beliefs
+        topick = previous_bid[0] - personalbeliefs[turn][previous_bid[1]-1]  # k
         diceleft = dicenum * (len(players) - 1)  # x/n
         thesum = 0
-        if previous_bid[0] != 0:
-            # Probability of throwing at least x n's
-            for x in range(topick, diceleft + 1):
-                thesum += math.factorial(diceleft) / (math.factorial(x) * math.factorial(diceleft - x)) * \
-                          ((1 / sides) ** x) * ((1 - 1 / sides) ** (diceleft - x))
+        if topick > 0:
+            if previous_bid[0] != 0:
+                # Probability of throwing at least x n's
+                for x in range(int(topick), diceleft + 1):
+                    thesum += math.factorial(diceleft) / (math.factorial(x) * math.factorial(diceleft - x)) * \
+                              ((1 / sides) ** x) * ((1 - 1 / sides) ** (diceleft - x))
+        else:
+            thesum = -1
         if prob <= thesum:
             print("Challenges because of belief its not true")
             for i, q in enumerate(quantities):
