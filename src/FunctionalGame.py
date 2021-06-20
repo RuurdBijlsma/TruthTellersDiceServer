@@ -1,9 +1,11 @@
+
 import itertools
 import math
 import numpy as np
 from itertools import product
 import random
 import copy
+import bids
 
 
 class FunctionalGame:
@@ -11,6 +13,7 @@ class FunctionalGame:
         self.sid = sid
         self.sides = sides
         self.players = generateplayerslist(players)
+        self.strategies = generatestrategylist(self.players)
         self.losingplayers = []
         self.playershistory = []
         newplist = copy.copy(self.players)
@@ -124,7 +127,8 @@ class FunctionalGame:
             quantities, previous_bid, self.personalbeliefs= announce_or_challenge(quantities, previous_bid,
                                                                              self.dice_combos, turn, self.sides,
                                                                              self.players, self.dice,
-                                                                             self.personalbeliefs)
+                                                                             self.personalbeliefs,
+                                                                             self.strategies)
 
             # Challenged
             if sum(quantities) < 0:
@@ -142,6 +146,7 @@ class FunctionalGame:
                     print(f"Player {self.players[turn]} successfully challenged, player "
                           f"{self.players[turn - 1 % len(self.players)] } loses a die")
                     del self.players[turn - 1 % len(self.players)]
+                    del self.strategies[turn - 1 % len(self.players)]
                 else:
                     playerwon = self.players[turn - 1 % len(self.players)]
                     playerlost = self.players[turn]
@@ -149,6 +154,7 @@ class FunctionalGame:
                     print(f"Player {self.players[turn]} unsuccessfully challenged, player "
                           f"{self.players[turn - 1 % len(self.players)] } loses a die")
                     del self.players[turn]
+                    del self.strategies[turn]
                 newplist = copy.copy(self.players)
                 self.playershistory.append(newplist)
             # Not challenged, we update connection matrix and logic lines
@@ -216,6 +222,11 @@ def count(dicelist, sides):
     return counts
 
 
+def generatestrategylist(players):
+    strats = ["Random", "Lowest", "Highest"]
+    return [random.choice(strats) for _ in players]
+
+
 # Player look at their dice and connections disappear
 def look_at_dice(dice_combos, players, connection_mat, world_list, sides, personalbeliefs):
     new_mat = connection_mat.copy()
@@ -264,13 +275,13 @@ def get_connection_mat(n_worlds, players):
 
 
 # If all quantities are -1, we challenge
-def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum, personalbeliefs):
+def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum, personalbeliefs, strategies):
     new_dice = 0
     new_bid = 0
     # Dice that the player in turn holds
     players_dice = np.array(dice[turn])
-    # Bid is higher than the belief allow
-    if 0 > len(players) * dicenum - sum(personalbeliefs[turn]) + personalbeliefs[turn][previous_bid[1]-1]- previous_bid[0]:
+    # Bid is higher than the belief allows
+    if sum(personalbeliefs[turn]) - personalbeliefs[turn][previous_bid[1]-1] + previous_bid[0] + 1 > len(players) * dicenum:
         print("Challenges because of too high number of dice according to players belief")
         for i, q in enumerate(quantities):
             quantities[i] = -1
@@ -302,44 +313,21 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
             new_bid = previous_bid[0]
         # Does belief its true, now make a bid themselves
         else:
-            prob = random.randint(1, 100)
-            # 50/50 of bidding higher or bidding next number
-
-            # bid higher
-            if prob < 50:
-                # Bid would be too high for current number of dice in game
-                if previous_bid[0] + 1 > dicenum * len(players) - personalbeliefs[turn][previous_bid[1]-1]:
-                    print(f"Challenging because updating pips causes inconsistency")
-                    for i, q in enumerate(quantities):
-                        quantities[i] = -1
-                    new_dice = previous_bid[1]
-                    new_bid = previous_bid[0]
-                # Up number of pips
-                else:
-                    new_bid = random.randint(previous_bid[0] + 1,
-                                             dicenum * len(players) - sum(players_dice == previous_bid[1]))
-                    quantities[previous_bid[1] - 1] = new_bid
-                    new_dice = previous_bid[1]
-                    personalbeliefs[turn][previous_bid[1]-1] = new_bid
-                    print(f"Updates current dice number to {new_bid}")
-            # update number
+            if strategies[turn] == "Random":
+                quantities, personalbeliefs, new_dice, new_bid = \
+                    bids.randombid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                                   sides)
+            elif strategies[turn] == "Lowest":
+                quantities, personalbeliefs, new_dice, new_bid = \
+                    bids.minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                                   sides)
+            elif strategies[turn] == "Highest":
+                quantities, personalbeliefs, new_dice, new_bid = \
+                    bids.aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                                sides)
             else:
-                # Sides too big, challenge
-                if previous_bid[1] + 1 > sides:
-                    print("Updating pips causes inconsistency, challenges bid instead")
-                    for i, q in enumerate(quantities):
-                        quantities[i] = -1
-                    new_dice = previous_bid[1]
-                    new_bid = previous_bid[0]
-                else:
-
-                    new_dice = random.randint(previous_bid[1] + 1, sides)
-                    new_bid = random.randint(1, len(players) * dicenum - sum(players_dice != new_dice))
-                    quantities[new_dice - 1] = new_bid
-                    personalbeliefs[turn][previous_bid[1]-1] = new_bid
-                    print(f"Updates dice number {previous_bid[1]} to {new_dice}")
-                    print(f"Updates number of dice to {new_bid}")
-
+                print("Strategy is not in list of strategies")
+                assert()
     return quantities, [new_bid, new_dice], personalbeliefs
 
 
