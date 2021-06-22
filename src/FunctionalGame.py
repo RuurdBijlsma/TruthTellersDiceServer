@@ -418,29 +418,28 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
 
 if __name__ == "__main__":
     # players dice sides\
-    for i in range(1000):
-        game_instance = FunctionalGame(3, 2, 2)
-        while len(game_instance.players) > 1:
-            game_instance.playround()
+    game_instance = FunctionalGame(3, 2, 2)
+    while len(game_instance.players) > 1:
+        game_instance.playround()
 
-        print("\nHistory of the game:")
-        print(game_instance.connection_mathistory)
+    print("\nHistory of the game:")
+    print(game_instance.connection_mathistory)
 
-        print("\nDice history:")
-        print(game_instance.dicehistory)
-        print("\nCommon knowledge history:")
-        print(game_instance.logic_commonknowledgehistory)
-        print("\nPlayer history:")
-        print(game_instance.playershistory)
-        print("\nLosing player history:")
-        print(game_instance.losingplayers)
-        print("\nBelief history:")
-        print(game_instance.logic_beliefshistory)
-        print("\nBid history:")
-        print(game_instance.bidshistory)
-        with open("run.txt", 'w') as runfile:
-            runfile.write(str(game_instance.dicehistory) + "\n" +
-                          str(game_instance.logic_commonknowledgehistory) + "\n" +
-                          str(game_instance.playershistory) + "\n" +
-                          str(game_instance.losingplayers) + "\n" +
-                          str(game_instance.logic_beliefshistory))
+    print("\nDice history:")
+    print(game_instance.dicehistory)
+    print("\nCommon knowledge history:")
+    print(game_instance.logic_commonknowledgehistory)
+    print("\nPlayer history:")
+    print(game_instance.playershistory)
+    print("\nLosing player history:")
+    print(game_instance.losingplayers)
+    print("\nBelief history:")
+    print(game_instance.logic_beliefshistory)
+    print("\nBid history:")
+    print(game_instance.bidshistory)
+    with open("run.txt", 'w') as runfile:
+        runfile.write(str(game_instance.dicehistory) + "\n" +
+                      str(game_instance.logic_commonknowledgehistory) + "\n" +
+                      str(game_instance.playershistory) + "\n" +
+                      str(game_instance.losingplayers) + "\n" +
+                      str(game_instance.logic_beliefshistory))
