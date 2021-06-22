@@ -26,8 +26,10 @@ class FunctionalGame:
         self.playershistory.append(newplist)
 
         # Keep track of the dice
+        self.totaldice = 0
         self.dice = dice
         self.dicehistory = []
+        self.diceperplayer = diceperplayer(dice, players)
 
         # Keep track of logic beliefs
         self.logic_beliefs = None
@@ -63,8 +65,15 @@ class FunctionalGame:
         self.logic_commonknowledgeround = []
         self.personalbeliefs = personalbeliefs(self.players, self.sides)
 
+        self.dice_combos = roll_dice(self.players, self.sides, self.diceperplayer)
+        print("Dice:")
+        print(self.dice_combos)
+        self.totaldice = 0
+        for dice in self.dice_combos:
+            self.totaldice += len(dice)
+
         # Make initial world list and connection matrix for round
-        self.world_list = get_world_list(self.players, self.dice, self.sides)
+        self.world_list = get_world_list(self.totaldice, self.sides)
         self.connection_mat = get_connection_mat(len(self.world_list), len(self.players))
 
         # Append initial states to lists that keep track of round states
@@ -82,13 +91,8 @@ class FunctionalGame:
         print("Initial Connection matrix")
         print(self.connection_mat)
 
-        # Let's play the game
-        # Roll the dice and append to history
-        self.dice_combos = roll_dice(self.players, self.sides, self.dice)
         tempdicecombos = copy.copy(self.dice_combos)
         self.dicehistory.append(tempdicecombos)
-        print("Dice:")
-        print(self.dice_combos)
 
         # Players look at their dice and initial worlds get removed
         self.connection_mat, self.personalbeliefs = look_at_dice(self.dice_combos,
@@ -124,7 +128,6 @@ class FunctionalGame:
         self.connection_mathistory.append(temproundconmat)
         self.bidshistory.append(tempbids)
 
-
     def bidding(self):
         challenged = 0
         turn = 0
@@ -146,33 +149,45 @@ class FunctionalGame:
                                                                              self.dice_combos, turn, self.sides,
                                                                              self.players, self.dice,
                                                                              self.personalbeliefs,
-                                                                             self.strategies)
+                                                                             self.strategies,
+                                                                             self.totaldice)
 
             # Challenged
             if sum(quantities) < 0:
                 challenged = 1
                 # See whether players loses dice or not
-                total_dice = 0
+                sumofdice = 0
                 for pdice in self.dice_combos:
                     for eachdice in pdice:
                         if eachdice == previous_bid[1]:
-                            total_dice += 1
-                if previous_bid[0] > total_dice:
+                            sumofdice += 1
+                if previous_bid[0] > sumofdice:
                     playerwon = self.players[turn]
                     playerlost = self.players[turn - 1 % len(self.players)]
                     self.losingplayers.append(playerlost)
                     print(f"Player {self.players[turn]} successfully challenged, player "
                           f"{self.players[turn - 1 % len(self.players)] } loses a die")
-                    del self.players[turn - 1 % len(self.players)]
-                    del self.strategies[turn - 1 % len(self.players)]
+
+                    # Remove die
+                    self.diceperplayer[self.players[turn - 1 % len(self.players)]] -= 1
+
+                    # If no die, remove player
+                    if self.diceperplayer[turn - 1 % len(self.players)] == 0:
+                        del self.players[turn - 1 % len(self.players)]
+                        del self.strategies[turn - 1 % len(self.players)]
+
                 else:
                     playerwon = self.players[turn - 1 % len(self.players)]
                     playerlost = self.players[turn]
                     self.losingplayers.append(playerlost)
                     print(f"Player {self.players[turn]} unsuccessfully challenged, player "
-                          f"{self.players[turn - 1 % len(self.players)] } loses a die")
-                    del self.players[turn]
-                    del self.strategies[turn]
+                          f"{self.players[turn] } loses a die")
+                    # Remove die
+                    self.diceperplayer[self.players[turn]] -= 1
+                    # If no die, remove player
+                    if self.diceperplayer[self.players[turn]] == 0:
+                        del self.players[turn]
+                        del self.strategies[turn]
                 newplist = copy.copy(self.players)
                 self.playershistory.append(newplist)
             # Not challenged, we update connection matrix and logic lines
@@ -225,10 +240,10 @@ def commonknowledge(sides):
 
 
 # Players roll their dice, list of lists containing dice per player is returned
-def roll_dice(players, sides, dice):
+def roll_dice(players, sides, diceperplayer):
     dice_combos = []
-    for _ in players:
-        dice_combos.append([random.randint(1, sides) for x in range(dice)])
+    for player in players:
+        dice_combos.append([random.randint(1, sides) for _ in range(diceperplayer[player])])
     return dice_combos
 
 
@@ -272,10 +287,10 @@ def look_at_dice(dice_combos, players, connection_mat, world_list, sides, person
     return new_mat, personalbeliefs
 
 
-def get_world_list(players, dice, sides):
+def get_world_list(totaldice, sides):
     worlds = []
     sidelist = [x + 1 for x in range(sides)]
-    for val in itertools.product(*[sidelist] * (len(players) * dice)):
+    for val in itertools.product(*[sidelist] * (totaldice)):
         sorted = list(val)
         sorted.sort()
         worlds.append(sorted)
@@ -294,13 +309,14 @@ def get_connection_mat(n_worlds, players):
 
 
 # If all quantities are -1, we challenge
-def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum, personalbeliefs, strategies):
+def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, dicenum, personalbeliefs, strategies,
+                          totaldice):
     new_dice = 0
     new_bid = 0
     # Dice that the player in turn holds
     players_dice = np.array(dice[turn])
     # Bid is higher than the belief allows
-    if sum(personalbeliefs[turn]) - personalbeliefs[turn][previous_bid[1]-1] + previous_bid[0] + 1 > len(players) * dicenum:
+    if sum(personalbeliefs[turn]) - personalbeliefs[turn][previous_bid[1]-1] + previous_bid[0] + 1 > totaldice:
         print("Challenges because of too high number of dice according to players belief")
         for i, q in enumerate(quantities):
             quantities[i] = -1
@@ -314,7 +330,7 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
         #               (total # of dice - dice the player holds)
         # To pick indicates how many dice need to be the same number as the bid in order to satisfy beliefs
         topick = previous_bid[0] - personalbeliefs[turn][previous_bid[1]-1]  # k
-        diceleft = dicenum * (len(players) - 1)  # x/n
+        diceleft = totaldice - len(dice[turn])  # x/n
         thesum = 0
         if topick > 0:
             if previous_bid[0] != 0:
@@ -334,20 +350,24 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
         else:
             if strategies[turn] == "Random":
                 quantities, personalbeliefs, new_dice, new_bid = \
-                    bids.randombid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                    bids.randombid(totaldice, previous_bid, personalbeliefs, quantities, players_dice, turn,
                                    sides)
             elif strategies[turn] == "Lowest":
                 quantities, personalbeliefs, new_dice, new_bid = \
-                    bids.minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                    bids.minbid(totaldice, previous_bid, personalbeliefs, quantities, turn,
                                    sides)
             elif strategies[turn] == "Highest":
                 quantities, personalbeliefs, new_dice, new_bid = \
-                    bids.aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn,
+                    bids.aggrobid(totaldice, previous_bid, personalbeliefs, quantities, players_dice, turn,
                                 sides)
             else:
                 print("Strategy is not in list of strategies")
                 assert()
     return quantities, [new_bid, new_dice], personalbeliefs
+
+
+def diceperplayer(dice, players):
+    return [dice for x in range(players)]
 
 
 def update_connection_mat(connection_mat, previous_bid, bid_before, turn, players, world_list, dice, cknowledge,
@@ -398,28 +418,29 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
 
 if __name__ == "__main__":
     # players dice sides\
-    game_instance = FunctionalGame(3, 2, 3)
-    while len(game_instance.players) > 1:
-        game_instance.playround()
+    for i in range(1000):
+        game_instance = FunctionalGame(3, 2, 2)
+        while len(game_instance.players) > 1:
+            game_instance.playround()
 
-    print("\nHistory of the game:")
-    print(game_instance.connection_mathistory)
+        print("\nHistory of the game:")
+        print(game_instance.connection_mathistory)
 
-    print("\nDice history:")
-    print(game_instance.dicehistory)
-    print("\nCommon knowledge history:")
-    print(game_instance.logic_commonknowledgehistory)
-    print("\nPlayer history:")
-    print(game_instance.playershistory)
-    print("\nLosing player history:")
-    print(game_instance.losingplayers)
-    print("\nBelief history:")
-    print(game_instance.logic_beliefshistory)
-    print("\nBid history:")
-    print(game_instance.bidshistory)
-    with open("run.txt", 'w') as runfile:
-        runfile.write(str(game_instance.dicehistory) + "\n" +
-                      str(game_instance.logic_commonknowledgehistory) + "\n" +
-                      str(game_instance.playershistory) + "\n" +
-                      str(game_instance.losingplayers) + "\n" +
-                      str(game_instance.logic_beliefshistory))
+        print("\nDice history:")
+        print(game_instance.dicehistory)
+        print("\nCommon knowledge history:")
+        print(game_instance.logic_commonknowledgehistory)
+        print("\nPlayer history:")
+        print(game_instance.playershistory)
+        print("\nLosing player history:")
+        print(game_instance.losingplayers)
+        print("\nBelief history:")
+        print(game_instance.logic_beliefshistory)
+        print("\nBid history:")
+        print(game_instance.bidshistory)
+        with open("run.txt", 'w') as runfile:
+            runfile.write(str(game_instance.dicehistory) + "\n" +
+                          str(game_instance.logic_commonknowledgehistory) + "\n" +
+                          str(game_instance.playershistory) + "\n" +
+                          str(game_instance.losingplayers) + "\n" +
+                          str(game_instance.logic_beliefshistory))
