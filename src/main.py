@@ -20,24 +20,26 @@ async def start_game(sid, players, dice, sides, strategy):
         # TODO make use of strategy in functional game
         # TODO get bids history made per player
         games[sid] = FunctionalGame(players, dice, sides)
-        while len(games[sid].players) > 1:
-            games[sid].playround()
+        game = games[sid]
+        game.strategies[0] = strategy
+        while len(game.players) > 1:
+            game.playround()
 
         matrices = list(map(
             lambda x: list(map(lambda y: y.tolist(), x)),
-            games[sid].connection_mathistory
+            game.connection_mathistory
         ))
         common_knowledge = list(map(
             lambda x: list(map(lambda y: y.tolist(), x)),
-            games[sid].logic_commonknowledgehistory
+            game.logic_commonknowledgehistory
         ))
         data = {
-            "worlds": games[sid].world_list,
+            "worlds": game.world_listhistory,
             "matrices": matrices,
-            "dice": games[sid].dicehistory,
+            "dice": game.dicehistory,
             "common_knowledge": common_knowledge,
-            "players": games[sid].playershistory,
-            "beliefs": games[sid].logic_beliefshistory,
+            "players": game.playershistory,
+            "beliefs": game.logic_beliefshistory,
         }
 
         await sio.emit('game_data', data, sid)
@@ -52,6 +54,7 @@ async def simulate_games(sid, players, dice, sides, strategy, iterations=100):
         winners = np.zeros(players)
         for i in range(iterations):
             game = FunctionalGame(players, dice, sides)
+            game.strategies[0] = strategy
             while len(game.players) > 1:
                 game.playround()
             winning_player = game.playershistory[len(game.playershistory) - 1]
