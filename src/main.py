@@ -40,6 +40,7 @@ async def start_game(sid, players, dice, sides, strategy):
             "common_knowledge": common_knowledge,
             "players": game.playershistory,
             "beliefs": game.logic_beliefshistory,
+            "bids": game.bidshistory,
         }
 
         await sio.emit('game_data', data, sid)
