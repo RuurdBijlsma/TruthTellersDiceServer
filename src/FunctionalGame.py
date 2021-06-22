@@ -43,6 +43,7 @@ class FunctionalGame:
 
         # List all possible worlds and connections between them per player
         self.world_list = None
+        self.world_listhistory = []
         self.connection_mat = None
         self.allconnection_mat = None
         self.connection_matround = None
@@ -74,6 +75,8 @@ class FunctionalGame:
 
         # Make initial world list and connection matrix for round
         self.world_list = get_world_list(self.totaldice, self.sides)
+        tempwlist = copy.copy(self.world_list)
+        self.world_listhistory.append(tempwlist)
         self.connection_mat = get_connection_mat(len(self.world_list), len(self.players))
 
         # Append initial states to lists that keep track of round states
@@ -437,6 +440,8 @@ if __name__ == "__main__":
     print(game_instance.logic_beliefshistory)
     print("\nBid history:")
     print(game_instance.bidshistory)
+    print("\nWorlds list history:")
+    print(game_instance.world_listhistory)
     with open("run.txt", 'w') as runfile:
         runfile.write(str(game_instance.dicehistory) + "\n" +
                       str(game_instance.logic_commonknowledgehistory) + "\n" +
