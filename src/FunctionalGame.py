@@ -12,15 +12,24 @@ class FunctionalGame:
     def __init__(self, players, dice, sides, sid=None):
         self.sid = sid
         self.sides = sides
+
+        # players is a list of players [0 1 ....]
         self.players = generateplayerslist(players)
+
+        # Strategies is a list of strategies corresponding to the player ["Random", "Random", "Highest" ... ]
         self.strategies = generatestrategylist(self.players)
+
+        # To keep track of losing players and players in the game
         self.losingplayers = []
         self.playershistory = []
         newplist = copy.copy(self.players)
         self.playershistory.append(newplist)
+
+        # Keep track of the dice
         self.dice = dice
         self.dicehistory = []
 
+        # Keep track of logic beliefs
         self.logic_beliefs = None
         self.logic_beliefsround = None
         self.logic_beliefshistory = []
@@ -29,26 +38,29 @@ class FunctionalGame:
         self.logic_commonknowledgehistory = []
 
         self.personalbeliefs = None
+
+        # List all possible worlds and connections between them per player
         self.world_list = None
         self.connection_mat = None
-
-        # Contains all connections in 1 round
         self.allconnection_mat = None
         self.connection_matround = None
         self.connection_mathistory = []
 
+        # Keep track of bids
+        self.bidsround = None
+        self.bidshistory = []
+
         self.dice_combos = None
 
     def playround(self):
+        self.bidsround = []
         self.connection_matround = []
 
         # Initialize structures that keep track of knowledge
         self.logic_beliefs = []
         self.logic_beliefsround = []
-
         self.logic_commonknowledge = commonknowledge(self.sides)
         self.logic_commonknowledgeround = []
-
         self.personalbeliefs = personalbeliefs(self.players, self.sides)
 
         # Make initial world list and connection matrix for round
@@ -63,6 +75,7 @@ class FunctionalGame:
         self.logic_beliefsround.append(tempbeliefs)
         self.logic_commonknowledgeround.append(tempcommonknowledge)
         self.connection_matround.append(tempconmat)
+        self.bidsround.append([])
 
         print("Initial world list")
         print(self.world_list)
@@ -93,19 +106,24 @@ class FunctionalGame:
         self.logic_beliefsround.append(tempbeliefs)
         self.logic_commonknowledgeround.append(tempcommonknowledge)
         self.connection_matround.append(tempconmat)
+        self.bidsround.append([])
 
         print("New connection matrix")
         print(self.connection_mat)
-        # Runs first round so without players losing a die
+
+        # Runs round of bidding, one player without players losing a die
         self.bidding()
 
         # Append all round history to global history
         temproundcknowledge = copy.copy(self.logic_commonknowledgeround)
         temproundbelief = copy.copy(self.logic_beliefsround)
         temproundconmat = copy.copy(self.connection_matround)
+        tempbids = copy.copy(self.bidsround)
         self.logic_commonknowledgehistory.append(temproundcknowledge)
         self.logic_beliefshistory.append(temproundbelief)
         self.connection_mathistory.append(temproundconmat)
+        self.bidshistory.append(tempbids)
+
 
     def bidding(self):
         challenged = 0
@@ -169,15 +187,16 @@ class FunctionalGame:
                                                                                     self.logic_commonknowledge,
                                                                                     self.personalbeliefs,
                                                                                     self.dice_combos)
-
                 # Append logic and connection matrices after every bidding round
                 self.logic_beliefs = generatebelieflines(self.personalbeliefs)
                 tempbeliefs = copy.copy(self.logic_beliefs)
                 tempcommonknowledge = copy.copy(self.logic_commonknowledge)
                 tempconmat = copy.copy(self.connection_mat)
+                tempbid = copy.copy(previous_bid)
                 self.logic_beliefsround.append(tempbeliefs)
                 self.logic_commonknowledgeround.append(tempcommonknowledge)
                 self.connection_matround.append(tempconmat)
+                self.bidsround.append(tempbid)
 
                 print(f"New quantities: {quantities}")
                 turn = (turn + 1) % len(self.players)
@@ -379,7 +398,7 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
 
 if __name__ == "__main__":
     # players dice sides\
-    game_instance = FunctionalGame(3, 2, 2)
+    game_instance = FunctionalGame(3, 2, 3)
     while len(game_instance.players) > 1:
         game_instance.playround()
 
@@ -396,6 +415,8 @@ if __name__ == "__main__":
     print(game_instance.losingplayers)
     print("\nBelief history:")
     print(game_instance.logic_beliefshistory)
+    print("\nBid history:")
+    print(game_instance.bidshistory)
     with open("run.txt", 'w') as runfile:
         runfile.write(str(game_instance.dicehistory) + "\n" +
                       str(game_instance.logic_commonknowledgehistory) + "\n" +

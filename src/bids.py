@@ -1,6 +1,7 @@
 import random
 
 def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+    print("Randombid:")
     # bid higher
     prob = random.randint(1, 100)
     if prob < 50:
@@ -33,7 +34,7 @@ def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, playe
         else:
 
             new_dice = random.randint(previous_bid[1] + 1, sides)
-            new_bid = random.randint(personalbeliefs[turn][new_dice - 1],
+            new_bid = random.randint(max(personalbeliefs[turn][new_dice - 1],1),
                                      len(players) * dicenum - sum(players_dice != new_dice))
             quantities[new_dice - 1] = new_bid
             personalbeliefs[turn][previous_bid[1] - 1] = new_bid
@@ -43,6 +44,7 @@ def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, playe
 
 
 def minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+    print("Minbid:")
     # bid higher
         # Bid would be too high for current number of dice in game
     if previous_bid[0] + 1 > dicenum * len(players) - personalbeliefs[turn][previous_bid[1] - 1]:
@@ -71,6 +73,7 @@ def minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_
 
 
 def aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+    print("Aggrobid:")
     # bid higher
     # Bid would be too high for current number of dice in game
     if previous_bid[1] + 1 > sides:
@@ -83,7 +86,7 @@ def aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, player
 
     else:
         new_dice = random.randint(previous_bid[1] + 1, sides)
-        new_bid = random.randint(personalbeliefs[turn][new_dice - 1],
+        new_bid = random.randint(max(personalbeliefs[turn][new_dice - 1] , 1),
                                  len(players) * dicenum - sum(players_dice != new_dice))
         quantities[new_dice - 1] = new_bid
         personalbeliefs[turn][previous_bid[1] - 1] = new_bid
