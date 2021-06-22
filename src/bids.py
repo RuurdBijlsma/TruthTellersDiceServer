@@ -1,12 +1,13 @@
 import random
 
-def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+
+def randombid(totaldice, previous_bid, personalbeliefs, quantities, players_dice, turn, sides):
     print("Randombid:")
     # bid higher
     prob = random.randint(1, 100)
     if prob < 50:
         # Bid would be too high for current number of dice in game
-        if previous_bid[0] + 1 > dicenum * len(players) - personalbeliefs[turn][previous_bid[1] - 1]:
+        if previous_bid[0] + 1 > totaldice - personalbeliefs[turn][previous_bid[1] - 1]:
             print(f"Challenging because updating pips causes inconsistency")
             for i, q in enumerate(quantities):
                 quantities[i] = -1
@@ -15,7 +16,7 @@ def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, playe
         # Up number of pips
         else:
             new_bid = random.randint(previous_bid[0] + 1,
-                                     dicenum * len(players) -
+                                     totaldice -
                                      int(sum(personalbeliefs[turn])) +
                                      int(personalbeliefs[turn][previous_bid[1] - 1]))
             quantities[previous_bid[1] - 1] = new_bid
@@ -35,7 +36,7 @@ def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, playe
 
             new_dice = random.randint(previous_bid[1] + 1, sides)
             new_bid = random.randint(max(personalbeliefs[turn][new_dice - 1],1),
-                                     len(players) * dicenum - sum(players_dice != new_dice))
+                                     totaldice - sum(players_dice != new_dice))
             quantities[new_dice - 1] = new_bid
             personalbeliefs[turn][previous_bid[1] - 1] = new_bid
             print(f"Updates dice number {previous_bid[1]} to {new_dice}")
@@ -43,11 +44,11 @@ def randombid(previous_bid, dicenum, players, personalbeliefs, quantities, playe
     return quantities, personalbeliefs, new_dice, new_bid
 
 
-def minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+def minbid(totaldice, previous_bid, personalbeliefs, quantities, turn, sides):
     print("Minbid:")
     # bid higher
         # Bid would be too high for current number of dice in game
-    if previous_bid[0] + 1 > dicenum * len(players) - personalbeliefs[turn][previous_bid[1] - 1]:
+    if previous_bid[0] + 1 > totaldice - personalbeliefs[turn][previous_bid[1] - 1]:
         # Cant bid further
         if previous_bid[1] + 1 > sides:
             print("Updating pips causes inconsistency, challenges bid instead")
@@ -72,7 +73,7 @@ def minbid(previous_bid, dicenum, players, personalbeliefs, quantities, players_
     return quantities, personalbeliefs, new_dice, new_bid
 
 
-def aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, players_dice, turn, sides):
+def aggrobid(totaldice, previous_bid, personalbeliefs, quantities, players_dice, turn, sides):
     print("Aggrobid:")
     # bid higher
     # Bid would be too high for current number of dice in game
@@ -87,7 +88,7 @@ def aggrobid(previous_bid, dicenum, players, personalbeliefs, quantities, player
     else:
         new_dice = random.randint(previous_bid[1] + 1, sides)
         new_bid = random.randint(max(personalbeliefs[turn][new_dice - 1] , 1),
-                                 len(players) * dicenum - sum(players_dice != new_dice))
+                                 totaldice - sum(players_dice != new_dice))
         quantities[new_dice - 1] = new_bid
         personalbeliefs[turn][previous_bid[1] - 1] = new_bid
         print(f"Updates dice number {previous_bid[1]} to {new_dice}")
