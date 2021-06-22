@@ -1,3 +1,4 @@
+import numpy as np
 import socketio
 from aiohttp import web
 from FunctionalGame import FunctionalGame
@@ -13,14 +14,50 @@ games = {}
 
 # Events are sent from the web client to this server
 @sio.event
-async def start_game(sid, players, dice, sides):
+async def start_game(sid, players, dice, sides, strategy):
     try:
+        print(f"Starting game with {players} players, {dice} dice, {sides} sides, strategy = {strategy}")
+        # TODO make use of strategy in functional game
+        # TODO get bids history made per player
         games[sid] = FunctionalGame(players, dice, sides)
-        await sio.emit('worlds', games[sid].world_list, sid)
-        await sio.emit('dice', games[sid].dice_combos, sid)
-        connections_matrices = games[sid].allconnection_mat.tolist()
-        await sio.emit('connection_matrices', connections_matrices, sid)
-        await sio.emit('logic_lines', games[sid].logic_lines, sid)
+        while len(games[sid].players) > 1:
+            games[sid].playround()
+
+        matrices = list(map(
+            lambda x: list(map(lambda y: y.tolist(), x)),
+            games[sid].connection_mathistory
+        ))
+        common_knowledge = list(map(
+            lambda x: list(map(lambda y: y.tolist(), x)),
+            games[sid].logic_commonknowledgehistory
+        ))
+        data = {
+            "worlds": games[sid].world_list,
+            "matrices": matrices,
+            "dice": games[sid].dicehistory,
+            "common_knowledge": common_knowledge,
+            "players": games[sid].playershistory,
+            "beliefs": games[sid].logic_beliefshistory,
+        }
+
+        await sio.emit('game_data', data, sid)
+    except Exception as e:
+        print(e)  # Events are sent from the web client to this server
+
+
+@sio.event
+async def simulate_games(sid, players, dice, sides, strategy, iterations=100):
+    try:
+        print(f"Simulating games with {players} players, {dice} dice, {sides} sides, strategy = {strategy}")
+        winners = np.zeros(players)
+        for i in range(iterations):
+            game = FunctionalGame(players, dice, sides)
+            while len(game.players) > 1:
+                game.playround()
+            winning_player = game.playershistory[len(game.playershistory) - 1]
+            winners[winning_player[0]] += 1
+
+        await sio.emit('simulation_data', winners.tolist(), sid)
     except Exception as e:
         print(e)
 
