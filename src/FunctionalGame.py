@@ -223,14 +223,16 @@ def generateplayerslist(players):
 
 
 def generatebelieflines(beliefs, cknowledge):
-    lines = []
+    lines = ""
     for i, row in enumerate(beliefs):
         for j, col in enumerate(row):
             for k in range(int(col)):
-                lines.append(f"~M_{i} {int(col)}*{j + 1}")
+                lines = lines + f" \\neg M_{i} ({int(k)}*{j + 1}) \land "
     for n, ck in enumerate(cknowledge):
         for m in range(int(ck)):
-            lines.append(f"C~ {int(m)}*{n+1}")
+            lines = lines + f"C\\neg ({int(m)}*{n+1}) \land "
+    if lines:
+        lines = lines[:-7]
     return lines
 
 
