@@ -79,7 +79,7 @@ class FunctionalGame:
         self.connection_mat = get_connection_mat(len(self.world_list), len(self.players))
 
         # Append initial states to lists that keep track of round states
-        self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+        self.logic_beliefs = generatebelieflines(self.personalbeliefs, self.logic_commonknowledge)
         tempbeliefs = copy.copy(self.logic_beliefs)
         tempcommonknowledge = copy.copy(self.logic_commonknowledge)
         tempconmat = copy.copy(self.connection_mat)
@@ -105,7 +105,7 @@ class FunctionalGame:
                                                                  self.personalbeliefs)
 
         # Append states after looking at dice to lists that keep track of round states
-        self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+        self.logic_beliefs = generatebelieflines(self.personalbeliefs, self.logic_commonknowledge)
         tempbeliefs = copy.copy(self.logic_beliefs)
         tempcommonknowledge = copy.copy(self.logic_commonknowledge)
         tempconmat = copy.copy(self.connection_mat)
@@ -169,7 +169,6 @@ class FunctionalGame:
                     self.losingplayers.append(playerlost)
                     print(f"Player {self.players[turn]} successfully challenged, player "
                           f"{self.players[turn - 1 % len(self.players)]} loses a die")
-
                     # Remove die
                     self.diceperplayer[self.players[turn - 1 % len(self.players)]] -= 1
 
@@ -205,7 +204,7 @@ class FunctionalGame:
                     self.personalbeliefs,
                     self.dice_combos)
                 # Append logic and connection matrices after every bidding round
-                self.logic_beliefs = generatebelieflines(self.personalbeliefs)
+                self.logic_beliefs = generatebelieflines(self.personalbeliefs, self.logic_commonknowledge)
                 tempbeliefs = copy.copy(self.logic_beliefs)
                 tempcommonknowledge = copy.copy(self.logic_commonknowledge)
                 tempconmat = copy.copy(self.connection_mat)
@@ -223,12 +222,15 @@ def generateplayerslist(players):
     return [x for x in range(players)]
 
 
-def generatebelieflines(beliefs):
+def generatebelieflines(beliefs, cknowledge):
     lines = []
     for i, row in enumerate(beliefs):
         for j, col in enumerate(row):
-            lines.append(f"M_{i} >= {int(col)}*{j + 1}")
-
+            for k in range(int(col)):
+                lines.append(f"~M_{i} {int(col)}*{j + 1}")
+    for n, ck in enumerate(cknowledge):
+        for m in range(int(ck)):
+            lines.append(f"C~ {int(m)}*{n+1}")
     return lines
 
 
@@ -259,7 +261,7 @@ def count(dicelist, sides):
 
 
 def generatestrategylist(players):
-    strats = ["Random", "Lowest", "Highest"]
+    strats = ["Lowest", "Highest", "Random"]
     return [random.choice(strats) for _ in players]
 
 
@@ -318,7 +320,8 @@ def announce_or_challenge(quantities, previous_bid, dice, turn, sides, players, 
     # Dice that the player in turn holds
     players_dice = np.array(dice[turn])
     # Bid is higher than the belief allows
-    if sum(personalbeliefs[turn]) - personalbeliefs[turn][previous_bid[1] - 1] + previous_bid[0] + 1 > totaldice:
+    if (sum(personalbeliefs[turn]) - personalbeliefs[turn][previous_bid[1] - 1] + previous_bid[0] + 1 > totaldice)\
+            or (sum(personalbeliefs[turn]) >= totaldice):
         print("Challenges because of too high number of dice according to players belief")
         for i, q in enumerate(quantities):
             quantities[i] = -1
@@ -420,7 +423,8 @@ def update_connection_mat(connection_mat, previous_bid, bid_before, turn, player
 
 if __name__ == "__main__":
     # players dice sides\
-    game_instance = FunctionalGame(3, 2, 2)
+    gameends = []
+    game_instance = FunctionalGame(2, 3, 3)
     while len(game_instance.players) > 1:
         game_instance.playround()
 

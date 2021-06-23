@@ -88,7 +88,7 @@ def aggrobid(totaldice, previous_bid, personalbeliefs, quantities, players_dice,
     else:
         new_dice = random.randint(previous_bid[1] + 1, sides)
         new_bid = random.randint(max(personalbeliefs[turn][new_dice - 1] , 1),
-                                 totaldice - sum(players_dice != new_dice))
+                                 totaldice - sum(personalbeliefs[turn])+personalbeliefs[turn][new_dice - 1])
         quantities[new_dice - 1] = new_bid
         personalbeliefs[turn][previous_bid[1] - 1] = new_bid
         print(f"Updates dice number {previous_bid[1]} to {new_dice}")
