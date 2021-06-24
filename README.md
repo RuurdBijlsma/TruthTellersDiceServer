@@ -8,8 +8,8 @@ Client source code: https://github.com/ruurdbijlsma/TruthTellersDiceClient
 ## Installation
 
 ```
-git clone https://github.com/RuurdBijlsma/mind-server
-cd mind-server
+git clone https://github.com/RuurdBijlsma/TruthTellersDiceServer
+cd TruthTellersDiceServer
 pip install -r requirements.txt
 ```
 
