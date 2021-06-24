@@ -22,6 +22,7 @@ async def start_game(sid, players, dice, sides, strategy):
         games[sid] = FunctionalGame(players, dice, sides)
         game = games[sid]
         game.strategies[0] = strategy
+        game.strategy_per_player[0] = strategy
         while len(game.players) > 1:
             game.playround()
 
@@ -41,6 +42,8 @@ async def start_game(sid, players, dice, sides, strategy):
             "players": game.playershistory,
             "beliefs": game.logic_beliefshistory,
             "bids": game.bidshistory,
+            "losers": game.losingplayers,
+            "strategies": game.strategy_per_player,
         }
 
         await sio.emit('game_data', data, sid)
